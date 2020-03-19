@@ -9,5 +9,6 @@ router
   .get('/get-all-users', userController.getall)
   .get('/download-users-json', userController.downloadUsersJSON)
   .post('/upload-csv', userController.uploadCsv)
+  .get('/djs', userController.test)
 
 export default router.routes();

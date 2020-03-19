@@ -8,7 +8,12 @@ const options = {
   quote     : '"'
 }
 
+const options_CSV = {
+  delimiter   : ",",
+  wrap        : false
+}
 export default {
+
   async getall(ctx){
     const client = await db.pool.connect()
     if(!client){
@@ -31,11 +36,11 @@ export default {
     }
     try{
 
-      let data_csv = fs.readFileSync(path.join(`${path.resolve('users.csv')}`),{encoding : 'utf8'})
+      console.log(ctx.request.body);
+
+      let data_csv = fs.readFileSync(path.join('users.csv'),{encoding : 'utf8'})
       
       let data_json = csvjson.toObject(data_csv, options)
-
-      console.log( path.resolve('users.csv')  )
 
       // data_json.map( el=> { 
       //    client.query('INSERT INTO users (age, firstname, lastname, username) VALUES ($1, $2, $3, $4)', [el.Age, el.FirstName, el.LastName, el.UserName])
@@ -55,8 +60,7 @@ export default {
   },
 
   async downloadUsersJSON(ctx){
-    
-    const read =  fs.createReadStream(path.join(`${path.resolve('users.csv')}`))
+    const read =  fs.createReadStream(path.join('users.csv'))
     
     const write =  fs.createWriteStream(path.join('users.json'))
     
@@ -65,9 +69,45 @@ export default {
     const stringify =  csvjson.stream.stringify();
     
     read.pipe(toObject).pipe(stringify).pipe(write)
+    
+    ctx.body = fs.createReadStream('users.json')
+  },
+  async test(ctx){
+    const client = await db.pool.connect()
 
-    let u_js = fs.readFileSync(path.join('users.json'))
-    console.log(JSON.parse(u_js));
-    // return ctx.body = {d_js}
+
+    let data = await client.query('select * from users').then(res => res.rows)
+
+
+    data.map(obj=> delete obj.id_user)
+
+    let jsn = csvjson.toCSV(data, options_CSV)
+    fs.writeFileSync(`${path.resolve('users.csv')}`, jsn)
+    let content = fs.readFileSync(path.resolve('users.csv'), "utf8")
+    console.log('content:',content);
+    
+    const fileName = `${path.join('users.csv')}`;
+
+    try {
+      if (fs.existsSync(fileName)) {
+        ctx.body = fs.createReadStream(fileName);
+        ctx.attachment(fileName);
+      } else {
+        ctx.throw(400, "Requested file not found on server");
+      }
+    } catch(error) {
+      ctx.throw(500, error);
+    } finally{
+      client.release()
+    }
   }
 }
+
+/*
+ const clickHandle = () => {
+    window.open("http://localhost:4010/api/users/djs");
+  };
+  <button className="nav-link" type="button" onClick={clickHandle}>
+              Get CSV
+            </button>
+            */
